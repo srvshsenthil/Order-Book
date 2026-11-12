@@ -111,9 +111,7 @@ void execute_trade(Order& incoming, Order& resting, std::vector<Trade>& trades, 
     trades.push_back(trade);
 }
 
-bool cancel_order(BuyOrderBook& buy_orders, SellOrderBook& sell_orders, OrderLookup& order_lookup){
-    long long id;
-    std::cout << "Enter order ID to cancel: ";
+bool cancel_order(long long id, BuyOrderBook& buy_orders, SellOrderBook& sell_orders, OrderLookup& order_lookup){
     if(!(std::cin >> id) || id <= 0){
         std::cout << "Invalid Order ID.\n";
         std::cin.clear();
@@ -140,18 +138,8 @@ bool remove_order(long long id, BuyOrderBook& buy_orders, SellOrderBook& sell_or
     return true;
 }
 
-void modify_order(BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vector<Trade>& trades, OrderLookup& order_lookup){
-    long long id;
+void modify_order(long long id, BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vector<Trade>& trades, OrderLookup& order_lookup){
     Order o;
-
-    while(true){
-        std::cout << "Enter Order ID: ";
-        if(std::cin >> id && id > 0) break;
-        std::cout << "Invalid Order ID. Enter a positive integer." << '\n';
-        std::cin.clear();
-        std::cin.ignore(1000, '\n');
-    }
-
     auto it = order_lookup.find(id);
     if(it == order_lookup.end()){
         std::cout << "Order not found or already executed.\n";
