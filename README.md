@@ -8,9 +8,10 @@ This is a C++ implementation of an electronic order book and matching engine, bu
 	Stage 3 — Price-time priority
 	Stage 4 — Matching engine
 	Stage 5 — Order management and trade history
+	Stage 6 — Data structures and performance
 
 ## Current development stage
-	Stage 6 — Data structures and performance
+
 
 ## Language
 C++
