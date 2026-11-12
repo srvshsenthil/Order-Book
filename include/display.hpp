@@ -4,3 +4,5 @@ void display_orders(const BuyOrderBook& buy_orders, const SellOrderBook& sell_or
 void display_trades(const std::vector<Trade>& trades);
 void display_stats(const std::vector<Trade>& trades);
 void display_depth(const BuyOrderBook& buy_orders, const SellOrderBook& sell_orders);
+std::string get_order_type(OrderType type);
+std::string get_time_in_force(TimeInForce time);
