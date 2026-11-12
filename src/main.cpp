@@ -36,8 +36,7 @@ int main(){
             Order o = get_order(used_order_ids);
             used_order_ids.insert(o.id);
             match_order(o, buy_orders, sell_orders, trades, order_lookup);
-        }
-        else if(state == 'C'){
+        }else if(state == 'C'){
             long long id;
             while(true){
                 std::cout << "Enter Order ID to cancel: ";
@@ -50,6 +49,9 @@ int main(){
             else std::cout << "Order not found or already executed.\n";
         }else if(state == 'M'){
             long long id;
+            double new_price;
+            int new_quantity;
+        
             while(true){
                 std::cout << "Enter Order ID: ";
                 if(std::cin >> id && id > 0) break;
@@ -57,7 +59,22 @@ int main(){
                 std::cin.clear();
                 std::cin.ignore(1000, '\n');
             }
-            modify_order(id, buy_orders, sell_orders, trades, order_lookup);
+            while(true){
+                std::cout << "Enter New Price: ";
+                if(std::cin >> new_price && std::isfinite(new_price) && new_price > 0) break;
+                std::cout << "Invalid price. Enter a valid input." << '\n';
+                std::cin.clear();
+                std::cin.ignore(1000, '\n');
+            }
+            while(true){
+                std::cout << "Enter New Quantity: ";
+                if(std::cin >> new_quantity && new_quantity > 0) break;
+                std::cout << "Invalid quantity. Enter a valid input." << '\n';
+                std::cin.clear();
+                std::cin.ignore(1000, '\n');
+            }
+
+            modify_order(id, new_price, new_quantity, buy_orders, sell_orders, trades, order_lookup);
         }else if(state == 'O') display_orders(buy_orders, sell_orders);
         else if(state == 'T') display_trades(trades);
         else if(state == 'S') display_stats(trades);
