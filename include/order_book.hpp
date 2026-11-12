@@ -9,5 +9,3 @@ void modify_order(BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vec
 bool order_exists(long long id, const std::unordered_set<long long>& used_order_ids);
 bool can_fully_fill(const Order& order, const BuyOrderBook& buy_orders, const SellOrderBook& sell_orders);
 bool can_match(const Order& order, double resting_price);
-std::string get_order_type(OrderType type);
-std::string get_time_in_force(TimeInForce time);
