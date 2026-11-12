@@ -1,5 +1,17 @@
 #include <bits/stdc++.h>
 
+enum class OrderType{
+    LIMIT,
+    MARKET
+};
+
+enum class TimeInForce{
+    GTC,
+    IOC,
+    FOK,
+    POST_ONLY
+};
+
 enum class Side{
     BUY,
     SELL
@@ -10,6 +22,8 @@ struct Order{
     Side side;
     double price;
     int quantity;
+    OrderType type;
+    TimeInForce time;
 };
 
 struct Trade{
@@ -43,6 +57,10 @@ void modify_order(BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vec
 void display_stats(const std::vector<Trade>& trades);
 void display_depth(const BuyOrderBook& buy_orders, const SellOrderBook& sell_orders);
 bool order_exists(long long id, const std::unordered_set<long long>& used_order_ids);
+bool can_fully_fill(const Order& order, const BuyOrderBook& buy_orders, const SellOrderBook& sell_orders);
+bool can_match(const Order& order, double resting_price);
+std::string get_order_type(OrderType type);
+std::string get_time_in_force(TimeInForce time);
 
 int main(){
     BuyOrderBook buy_orders;
@@ -94,6 +112,8 @@ int main(){
 Order get_order(const std::unordered_set<long long>& used_order_ids){
     Order o;
     std::string sideinput;
+    std::string typeinput;
+    std::string timeinput;
 
     while(true){
         std::cout << "Enter Order ID: ";
@@ -120,11 +140,69 @@ Order get_order(const std::unordered_set<long long>& used_order_ids){
     }
 
     while(true){
-        std::cout << "Enter Price: ";
-        if(std::cin >> o.price && o.price > 0) break;
-        std::cout << "Invalid price. Enter a valid input." << '\n';
+        std::cout << "Enter Order Type (LIMIT/MARKET): ";
+        if(std::cin >> typeinput){
+            if(typeinput == "LIMIT"){
+                o.type = OrderType::LIMIT;
+                break;
+            }else if(typeinput == "MARKET"){
+                o.type = OrderType::MARKET;
+                break;
+            }
+        }
+        std::cout << "Invalid order type. Enter LIMIT or MARKET." << '\n';
         std::cin.clear();
         std::cin.ignore(1000, '\n');
+    }
+
+    while(true){
+        std::cout << "Enter Time In Force (GTC/IOC/FOK/POST ONLY): ";
+        if(std::cin >> timeinput){
+            if(timeinput == "GTC"){
+                o.time = TimeInForce::GTC;
+                break;
+            }else if(timeinput == "IOC"){
+                o.time = TimeInForce::IOC;
+                break;
+            }else if(timeinput == "FOK"){
+                o.time = TimeInForce::FOK;
+                break;
+            }else if(timeinput == "POST ONLY"){
+                o.time = TimeInForce::POST_ONLY;
+                break;
+            }
+        }
+        std::cout << "Invalid time in force. Enter GTC, IOC, FOK or POST ONLY." << '\n';
+        std::cin.clear();
+        std::cin.ignore(1000, '\n');
+    }
+
+    if(o.type == OrderType::MARKET){
+        while(o.time != TimeInForce::IOC && o.time != TimeInForce::FOK){
+            std::cout << "Market orders only support IOC or FOK.\n";
+            std::cout << "Enter Time In Force (IOC/FOK): ";
+            if(std::cin >> timeinput){
+                if(timeinput == "IOC"){
+                    o.time = TimeInForce::IOC;
+                    break;
+                }else if(timeinput == "FOK"){
+                    o.time = TimeInForce::FOK;
+                    break;
+                }
+            }
+            std::cout << "Invalid time in force.\n";
+            std::cin.clear();
+            std::cin.ignore(1000, '\n');
+        }
+        o.price = 0;
+    }else{
+        while(true){
+            std::cout << "Enter Price: ";
+            if(std::cin >> o.price && std::isfinite(o.price) && o.price > 0) break;
+            std::cout << "Invalid price. Enter a valid input." << '\n';
+            std::cin.clear();
+            std::cin.ignore(1000, '\n');
+        }
     }
 
     while(true){
@@ -138,7 +216,59 @@ Order get_order(const std::unordered_set<long long>& used_order_ids){
     return o;
 }
 
+bool can_match(const Order& order, double resting_price){
+    if(order.type == OrderType::MARKET) return true;
+    if(order.side == Side::BUY) return order.price >= resting_price;
+    return order.price <= resting_price;
+}
+
+bool can_fully_fill(const Order& order, const BuyOrderBook& buy_orders, const SellOrderBook& sell_orders){
+    long long available_quantity = 0;
+
+    if(order.side == Side::BUY){
+        for(const auto& [price, orders] : sell_orders){
+            if(!can_match(order, price)) break;
+            for(const Order& resting : orders){
+                available_quantity += resting.quantity;
+                if(available_quantity >= order.quantity) return true;
+            }
+        }
+    }else{
+        for(const auto& [price, orders] : buy_orders){
+            if(!can_match(order, price)) break;
+            for(const Order& resting : orders){
+                available_quantity += resting.quantity;
+                if(available_quantity >= order.quantity) return true;
+            }
+        }
+    }
+
+    return available_quantity >= order.quantity;
+}
+
 void match_order(Order& order, BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vector<Trade>& trades, OrderLookup& order_lookup){
+    if(order.time == TimeInForce::POST_ONLY){
+        bool would_match = false;
+        if(order.side == Side::BUY && !sell_orders.empty()){
+            would_match = can_match(order, sell_orders.begin()->first);
+        }else if(order.side == Side::SELL && !buy_orders.empty()){
+            would_match = can_match(order, buy_orders.begin()->first);
+        }
+        if(would_match){
+            std::cout << "Post-only order rejected. Order would execute immediately.\n";
+            return;
+        }
+        add_order(order, buy_orders, sell_orders, order_lookup);
+        std::cout << "Post-only order added to the order book.\n";
+        return;
+    }
+    if(order.time == TimeInForce::FOK){
+        if(!can_fully_fill(order, buy_orders, sell_orders)){
+            std::cout << "FOK order cancelled. Insufficient liquidity for full execution.\n";
+            return;
+        }
+    }
+    
     int transf;
 
     if(order.side == Side::BUY){
@@ -155,7 +285,12 @@ void match_order(Order& order, BuyOrderBook& buy_orders, SellOrderBook& sell_ord
                 if(it->second.empty()) sell_orders.erase(it);
             }else break;
         }
-        if(order.quantity > 0) add_order(order, buy_orders, sell_orders, order_lookup);
+        if(order.quantity > 0 && order.time == TimeInForce::GTC){
+            add_order(order, buy_orders, sell_orders, order_lookup);
+            std::cout << "Remaining quantity added to the order book.\n";
+        }else if(order.quantity > 0 && order.time == TimeInForce::IOC){
+            std::cout << "Unfilled IOC quantity cancelled: " << order.quantity << '\n';
+        }
     }else{
         while(order.quantity > 0 && !buy_orders.empty()){
             auto it = buy_orders.begin();
@@ -170,7 +305,15 @@ void match_order(Order& order, BuyOrderBook& buy_orders, SellOrderBook& sell_ord
                 if(it->second.empty()) buy_orders.erase(it);
             }else break;
         }
-        if(order.quantity > 0) add_order(order, buy_orders, sell_orders, order_lookup);
+        if(order.quantity > 0 && order.time == TimeInForce::GTC){
+            add_order(order, buy_orders, sell_orders, order_lookup);
+            std::cout << "Remaining quantity added to the order book.\n";
+        }else if(order.quantity > 0 && order.time == TimeInForce::IOC){
+            std::cout << "Unfilled IOC quantity cancelled: " << order.quantity << '\n';
+        }
+    }
+    if(order.quantity == 0){
+        std::cout << "Order completely filled.\n";
     }
 }
 
@@ -229,11 +372,15 @@ void display_orders(const BuyOrderBook& buy_orders, const SellOrderBook& sell_or
             std::cout << "Price: " << price << '\n';
             std::cout << std::left << std::setw(15) << "Order ID";
             std::cout << std::left << std::setw(10) << "Side";
-            std::cout << std::left << std::setw(12) << "Quantity" << '\n';
+            std::cout << std::left << std::setw(12) << "Quantity";
+            std::cout << std::left << std::setw(10) << "Order Type";
+            std::cout << std::left << std::setw(10) << "Time In Force" << '\n';
             for(const Order& order : orders){
                 std::cout << std::left << std::setw(15) << order.id;
                 std::cout << std::left << std::setw(10) << "BUY";
-                std::cout << std::left << std::setw(12) << order.quantity << '\n';
+                std::cout << std::left << std::setw(12) << order.quantity;
+                std::cout << std::left << std::setw(10) << get_order_type(order.type);
+                std::cout << std::left << std::setw(10) << get_time_in_force(order.time) << '\n';
                 total_quantity += order.quantity;
             }
             std::cout << "Total quantity: " << total_quantity << "\n\n";
@@ -247,11 +394,15 @@ void display_orders(const BuyOrderBook& buy_orders, const SellOrderBook& sell_or
             std::cout << "Price: " << price << '\n';
             std::cout << std::left << std::setw(15) << "Order ID";
             std::cout << std::left << std::setw(10) << "Side";
-            std::cout << std::left << std::setw(12) << "Quantity" << '\n';
+            std::cout << std::left << std::setw(12) << "Quantity";
+            std::cout << std::left << std::setw(10) << "Order Type";
+            std::cout << std::left << std::setw(10) << "Time In Force" << '\n';
             for (const Order& order : orders){
                 std::cout << std::left << std::setw(15) << order.id;
                 std::cout << std::left << std::setw(10) << "SELL";
-                std::cout << std::left << std::setw(12) << order.quantity << '\n';
+                std::cout << std::left << std::setw(12) << order.quantity;
+                std::cout << std::left << std::setw(12) << get_order_type(order.type);
+                std::cout << std::left << std::setw(12) << get_time_in_force(order.time) << '\n';
                 total_quantity += order.quantity;
             }
             std::cout << "Total quantity: " << total_quantity << "\n\n";
@@ -328,7 +479,7 @@ void modify_order(BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vec
 
     std::cout << std::left << std::setw(15) << "Order ID";
     std::cout << std::left << std::setw(10) << "Side";
-    std::cout << std::left << std::setw(10) << "Price: ";
+    std::cout << std::left << std::setw(10) << "Price";
     std::cout << std::left << std::setw(12) << "Quantity" << '\n';
 
     std::cout << std::left << std::setw(15) << o.id;
@@ -426,4 +577,16 @@ void display_depth(const BuyOrderBook& buy_orders, const SellOrderBook& sell_ord
 
 bool order_exists(long long id, const std::unordered_set<long long>& used_order_ids){
     return used_order_ids.find(id) != used_order_ids.end();
+}
+
+std::string get_order_type(OrderType type){
+    if(type == OrderType::LIMIT) return "LIMIT";
+    return "MARKET";
+}
+
+std::string get_time_in_force(TimeInForce time){
+    if(time == TimeInForce::GTC) return "GTC";
+    if(time == TimeInForce::IOC) return "IOC";
+    if(time == TimeInForce::FOK) return "FOK";
+    return "POST_ONLY";
 }
