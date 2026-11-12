@@ -1,3 +1,5 @@
+#pragma once
+
 #include "order_types.hpp"
 
 void match_order(Order& order, BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vector<Trade>& trades, OrderLookup& order_lookup);
