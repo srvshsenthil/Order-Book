@@ -131,45 +131,35 @@ bool remove_order(long long id, BuyOrderBook& buy_orders, SellOrderBook& sell_or
     return true;
 }
 
-void modify_order(long long id, BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vector<Trade>& trades, OrderLookup& order_lookup){
-    Order o;
+
+bool modify_order(long long id, double new_price, int new_quantity, BuyOrderBook& buy_orders, SellOrderBook& sell_orders, std::vector<Trade>& trades, OrderLookup& order_lookup){
     auto it = order_lookup.find(id);
     if(it == order_lookup.end()){
         std::cout << "Order not found or already executed.\n";
-        return;
+        return false;
     }
-    o = *it->second.order_it;
-
-    std::cout << std::left << std::setw(15) << "Order ID";
-    std::cout << std::left << std::setw(10) << "Side";
-    std::cout << std::left << std::setw(10) << "Price";
-    std::cout << std::left << std::setw(12) << "Quantity" << '\n';
-
-    std::cout << std::left << std::setw(15) << o.id;
-    std::cout << std::left << std::setw(10) << ((o.side == Side::BUY) ? "BUY" : "SELL");
-    std::cout << std::left << std::setw(10) << o.price;
-    std::cout << std::left << std::setw(12) << o.quantity << '\n';
-
+    Order o = *it->second.order_it;
+    if(o.time == TimeInForce::POST_ONLY){
+        bool would_match = false;
+        if(o.side == Side::BUY && !sell_orders.empty()){
+            would_match = new_price >= sell_orders.begin()->first;
+        }else if(o.side == Side::SELL && !buy_orders.empty()){
+            would_match = new_price <= buy_orders.begin()->first;
+        }
+        if(would_match){
+            std::cout << "Modification rejected. Post-only order would execute immediately.\n";
+            return false;
+        }
+    }
     remove_order(id, buy_orders, sell_orders, order_lookup);
-
-    while(true){
-        std::cout << "Enter New Price: ";
-        if(std::cin >> o.price && std::isfinite(o.price) && o.price > 0) break;
-        std::cout << "Invalid price. Enter a valid input." << '\n';
-        std::cin.clear();
-        std::cin.ignore(1000, '\n');
-    }
-
-    while(true){
-        std::cout << "Enter New Quantity: ";
-        if(std::cin >> o.quantity && o.quantity > 0) break;
-        std::cout << "Invalid quantity. Enter a valid input." << '\n';
-        std::cin.clear();
-        std::cin.ignore(1000, '\n');
-    }
-    
+    o.price = new_price;
+    o.quantity = new_quantity;
     match_order(o, buy_orders, sell_orders, trades, order_lookup);
+
+    std::cout << "Order modified successfully.\n";
+    return true;
 }
+
 
 bool can_match(const Order& order, double resting_price){
     if(order.type == OrderType::MARKET) return true;
