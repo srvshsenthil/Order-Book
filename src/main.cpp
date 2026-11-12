@@ -38,11 +38,27 @@ int main(){
             match_order(o, buy_orders, sell_orders, trades, order_lookup);
         }
         else if(state == 'C'){
-            if(cancel_order(buy_orders, sell_orders, order_lookup)) std::cout << "Order cancelled successfully.\n";
+            long long id;
+            while(true){
+                std::cout << "Enter Order ID to cancel: ";
+                if(std::cin >> id && id > 0) break;
+                std::cout << "Invalid Order ID. Enter a positive integer." << '\n';
+                std::cin.clear();
+                std::cin.ignore(1000, '\n');
+            }
+            if(cancel_order(id, buy_orders, sell_orders, order_lookup)) std::cout << "Order cancelled successfully.\n";
             else std::cout << "Order not found or already executed.\n";
-        }
-        else if(state == 'M') modify_order(buy_orders, sell_orders, trades, order_lookup);
-        else if(state == 'O') display_orders(buy_orders, sell_orders);
+        }else if(state == 'M'){
+            long long id;
+            while(true){
+                std::cout << "Enter Order ID: ";
+                if(std::cin >> id && id > 0) break;
+                std::cout << "Invalid Order ID. Enter a positive integer." << '\n';
+                std::cin.clear();
+                std::cin.ignore(1000, '\n');
+            }
+            modify_order(id, buy_orders, sell_orders, trades, order_lookup);
+        }else if(state == 'O') display_orders(buy_orders, sell_orders);
         else if(state == 'T') display_trades(trades);
         else if(state == 'S') display_stats(trades);
         else if(state == 'B') display_depth(buy_orders, sell_orders);
