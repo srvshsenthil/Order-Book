@@ -1,4 +1,12 @@
-#include <bits/stdc++.h>
+#pragma once
+
+#include <map>
+#include <list>
+#include <functional>
+#include <unordered_map>
+#include <vector>
+#include <string>
+#include <unordered_set>
 
 enum class OrderType{
     LIMIT,
