@@ -1,3 +1,5 @@
+#pragma once
+
 #include "order_book.hpp"
 
 void display_orders(const BuyOrderBook& buy_orders, const SellOrderBook& sell_orders);
