@@ -112,13 +112,6 @@ void execute_trade(Order& incoming, Order& resting, std::vector<Trade>& trades, 
 }
 
 bool cancel_order(long long id, BuyOrderBook& buy_orders, SellOrderBook& sell_orders, OrderLookup& order_lookup){
-    if(!(std::cin >> id) || id <= 0){
-        std::cout << "Invalid Order ID.\n";
-        std::cin.clear();
-        std::cin.ignore(1000, '\n');
-        return false;
-    }
-
     return remove_order(id, buy_orders, sell_orders, order_lookup);
 }
 
